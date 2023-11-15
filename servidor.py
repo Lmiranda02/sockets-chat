@@ -1,57 +1,56 @@
+# imports
 import socket
 import threading
 
-# Diccionario para mantener un registro de los nombres de los clientes y sus sockets
-clientes = {}
 
-def broadcast_mensaje(mensaje, cliente_socket):
-    for nombre_cliente, socket_cliente in clientes.items():
-        if socket_cliente != cliente_socket:
-            mensaje_con_nombre = f"{nombre_cliente}: {mensaje}"
-            socket_cliente.send(mensaje_con_nombre.encode())
+class ChatServer:
+    clients_list = []
 
-def manejar_cliente(cliente_socket):
-    cliente_socket.send("NOMBRE".encode())
-    nombre_cliente = cliente_socket.recv(1024).decode()
-    
-    while nombre_cliente in clientes:
-        cliente_socket.send("El nombre ya está en uso. Intente con otro nombre.".encode())
-        nombre_cliente = cliente_socket.recv(1024).decode()
-    
-    clientes[nombre_cliente] = cliente_socket
-    bienvenida = f"[SERVER] Cliente {nombre_cliente} conectado."
-    print(bienvenida)
-    broadcast_mensaje(bienvenida, cliente_socket)
-    
-    # Enviar el mensaje "Nombre aceptado"
-    cliente_socket.send("Nombre aceptado".encode())
+    last_received_message = ""
 
-    while True:
-        try:
-            mensaje = cliente_socket.recv(1024).decode()
-            if not mensaje:
-                desconectado = f"[SERVER] Cliente {nombre_cliente} desconectado."
-                print(desconectado)
-                broadcast_mensaje(desconectado, cliente_socket)
-                del clientes[nombre_cliente]
-                cliente_socket.close()
+    def __init__(self):
+        self.server_socket = None
+        self.create_listening_server()
+
+    def create_listening_server(self):
+
+        self.server_socket = socket.socket(socket.AF_INET,
+                                           socket.SOCK_STREAM)
+        local_ip = '127.0.0.1'
+        local_port = 10319
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_socket.bind((local_ip, local_port))
+        print("Listening for incoming messages..")
+        self.server_socket.listen(5)
+        self.receive_messages_in_a_new_thread()
+
+    def receive_messages(self, so):
+        while True:
+            incoming_buffer = so.recv(256)
+            if not incoming_buffer:
                 break
-            else:
-                broadcast_mensaje(mensaje, cliente_socket)
-        except ConnectionAbortedError:
-            print(f"[SERVER] Cliente {nombre_cliente} desconectado inesperadamente.")
-            break
+            self.last_received_message = incoming_buffer.decode('utf-8')
+            self.broadcast_to_all_clients(so)
+        so.close()
 
-# Configura el socket del servidor
-HOST = '127.0.0.1'
-PORT = 8080
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind((HOST, PORT))
-server_socket.listen(5)
+    def broadcast_to_all_clients(self, senders_socket):
+        for client in self.clients_list:
+            socket, (ip, port) = client
+            if socket is not senders_socket:
+                socket.sendall(self.last_received_message.encode('utf-8'))
 
-print("Esperando clientes...")
+    def receive_messages_in_a_new_thread(self):
+        while True:
+            client = so, (ip, port) = self.server_socket.accept()
+            self.add_to_clients_list(client)
+            print('Connected to ', ip, ':', str(port))
+            t = threading.Thread(target=self.receive_messages, args=(so,))
+            t.start()
 
-while True:
-    client_socket, client_addr = server_socket.accept()
-    cliente_thread = threading.Thread(target=manejar_cliente, args=(client_socket,))
-    cliente_thread.start()
+    def add_to_clients_list(self, client):
+        if client not in self.clients_list:
+            self.clients_list.append(client)
+
+
+if __name__ == "__main__":
+    ChatServer()
