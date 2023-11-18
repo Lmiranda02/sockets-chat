@@ -106,13 +106,36 @@ class GUI:
 
     def send_chat(self):
         senders_name = self.name_widget.get().strip() + ": "
-        data = self.enter_text_widget.get(1.0, 'end').strip()
-        message = (senders_name + data).encode('utf-8')
-        self.chat_transcript_area.insert('end', message.decode('utf-8') + '\n')
-        self.chat_transcript_area.yview(END)
-        self.client_socket.send(message)
+        message_text = self.enter_text_widget.get(1.0, 'end').strip()
+
+        if message_text.startswith(":"):
+            self.handle_special_command(message_text)
+        else:
+            message = (senders_name + message_text).encode('utf-8')
+            self.chat_transcript_area.insert('end', message.decode('utf-8') + '\n')
+            self.chat_transcript_area.yview(END)
+            self.client_socket.send(message)
+
         self.enter_text_widget.delete(1.0, 'end')
         return 'break'
+
+    def handle_special_command(self, command):
+        if command == ":q":
+            self.client_socket.send(command.encode('utf-8'))
+            self.client_socket.close()
+            self.root.destroy()
+            exit(0)
+        elif command == ":smile":
+            self.client_socket.send(":)".encode('utf-8'))
+        elif command == ":angry":
+            self.client_socket.send(">:(".encode('utf-8'))
+        elif command == ":combito":
+            self.client_socket.send("Q(’- ’Q)".encode('utf-8'))
+        elif command == ":larva":
+            self.client_socket.send("(:o)OOOooo".encode('utf-8'))
+        else:
+            # Unknown command
+            self.client_socket.send(command.encode('utf-8'))
 
     def on_close_window(self):
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
