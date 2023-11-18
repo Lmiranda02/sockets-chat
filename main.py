@@ -8,8 +8,10 @@ import threading
 def start_client():
     root = Tk()
     gui = GUI(root)
+    gui.show_welcome_message()  # Mostrar mensaje de bienvenida al iniciar la interfaz
     root.protocol("WM_DELETE_WINDOW", gui.on_close_window)
     root.mainloop()
+
 
 def start_server():
     server = ChatServer()

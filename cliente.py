@@ -23,6 +23,10 @@ class GUI:
         remote_ip = '127.0.0.1'
         remote_port = 10319
         self.client_socket.connect((remote_ip, remote_port))
+        
+    def show_welcome_message(self):
+        self.chat_transcript_area.insert('end', '¡Bienvenid@ al chat de Granjerxs!\n')
+        self.chat_transcript_area.yview(END)
 
     def initialize_gui(self):
         self.root.title("Socket Chat")

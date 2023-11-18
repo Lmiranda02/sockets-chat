@@ -28,6 +28,9 @@ class ChatServer:
         while True:
             incoming_buffer = so.recv(256)
             if not incoming_buffer:
+                socket, (ip, port) = so.getpeername()
+                print(f'[SERVER] Cliente {ip}:{port} desconectado.')
+                self.broadcast_to_all_clients(so, f'[SERVER] Cliente {ip}:{port} desconectado.')
                 break
             self.last_received_message = incoming_buffer.decode('utf-8')
             self.broadcast_to_all_clients(so)
@@ -50,6 +53,11 @@ class ChatServer:
     def add_to_clients_list(self, client):
         if client not in self.clients_list:
             self.clients_list.append(client)
+            socket, (ip, port) = client
+            print(f'[SERVER] Cliente {ip}:{port} conectado.')
+            for c in self.clients_list:
+                if c is not client:
+                    c[0].sendall(f'[SERVER] Cliente {ip}:{port} conectado.\n'.encode('utf-8'))
 
 
 if __name__ == "__main__":
