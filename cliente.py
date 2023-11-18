@@ -1,3 +1,4 @@
+import json
 from tkinter import Tk, Frame, Scrollbar, Label, END, Entry, Text, VERTICAL, Button, \
     messagebox
 import socket
@@ -14,6 +15,7 @@ class GUI:
         self.name_widget = None
         self.enter_text_widget = None
         self.join_button = None
+        self.artifacts_entry = None  # Variable para almacenar los artefactos ingresados
         self.initialize_socket()
         self.initialize_gui()
         self.listen_for_incoming_messages_in_a_thread()
@@ -66,7 +68,27 @@ class GUI:
         self.name_widget.pack(side='left', anchor='e')
         self.join_button = Button(frame, text="Join", width=10, command=self.on_join).pack(side='left')
         frame.pack(side='top', anchor='nw')
+        Button(frame, text="Ingresar Artefactos", width=20, command=self.enter_artifacts).pack(side='left')
+        frame.pack(side='top', anchor='nw')
+    
+    def enter_artifacts(self):
+        artifacts_dialog = Tk()
+        artifacts_dialog.title("Ingresar Artefactos")
+        artifacts_dialog.resizable(0, 0)
 
+        Label(artifacts_dialog, text='Ingrese los números de artefactos separados por comas:', font=("Serif", 12)).pack()
+        self.artifacts_entry = Entry(artifacts_dialog, width=50, borderwidth=2)
+        self.artifacts_entry.pack(pady=10)
+
+        def send_artifacts():
+            artifacts = self.artifacts_entry.get().strip()
+            self.client_socket.send(f"artifacts:{artifacts}".encode('utf-8'))
+            self.show_artifacts_summary(artifacts)  # Mostrar el resumen de los artefactos en el chatbox
+            artifacts_dialog.destroy()
+
+        Button(artifacts_dialog, text="Enviar", width=10, command=send_artifacts).pack()
+        artifacts_dialog.mainloop()
+        
     def display_chat_box(self):
         frame = Frame()
         Label(frame, text='Chat Box:', font=("Serif", 12)).pack(side='top', anchor='w')
@@ -93,6 +115,34 @@ class GUI:
             return
         self.name_widget.config(state='disabled')
         self.client_socket.send(("joined:" + self.name_widget.get()).encode('utf-8'))
+        artifacts = self.get_artifacts_names()  # Obtener los nombres de los artefactos declarados
+        if artifacts:
+            self.client_socket.send(f"artifacts:{artifacts}".encode('utf-8'))
+            self.show_artifacts_summary(artifacts)  # Mostrar el resumen de los artefactos en el chatbox
+            
+    def get_artifacts_names(self):
+        artifacts_numbers = self.enter_text_widget.get(1.0, 'end').strip()
+        artifacts_numbers = artifacts_numbers.split(',')
+        with open('artefactos.json', 'r', encoding='utf-8') as file:
+            artifacts_data = json.load(file)
+            artifacts_names = [artifacts_data.get(num.strip()) for num in artifacts_numbers if num.strip() in artifacts_data]
+            return ', '.join(filter(None, artifacts_names))
+
+    def show_artifacts_summary(self, artifacts):
+            artifacts_numbers = artifacts.split(',')
+            
+            with open('artefactos.json', 'r', encoding='utf-8') as file:
+                artifacts_data = json.load(file)
+                artifacts_names = [artifacts_data.get(num.strip()) for num in artifacts_numbers if num.strip() in artifacts_data]
+                artifacts_names = ', '.join(filter(None, artifacts_names))
+
+                if artifacts_names:
+                    message = f'[SERVER] Tus artefactos: {artifacts_names}\n'
+                    self.chat_transcript_area.insert('end', message)
+                    self.chat_transcript_area.yview(END)
+                else:
+                    self.chat_transcript_area.insert('end', "[SERVER] No se encontraron artefactos asociados a los números ingresados.\n")
+                    self.chat_transcript_area.yview(END)
 
     def on_enter_key_pressed(self, event):
         if len(self.name_widget.get()) == 0:
