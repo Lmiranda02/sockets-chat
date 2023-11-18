@@ -134,7 +134,6 @@ class GUI:
         elif command == ":larva":
             self.client_socket.send("(:o)OOOooo".encode('utf-8'))
         else:
-            # Unknown command
             self.client_socket.send(command.encode('utf-8'))
 
     def on_close_window(self):
